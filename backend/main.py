@@ -34,8 +34,9 @@ def ask(q: Question):
 
     # 2. ADD the pieces and the question into one message
     notes = "\n\n".join(pieces)
-    prompt = f"""Answer the question using ONLY these notes.
-If the answer is not in the notes, say "Not found in your notes."
+    prompt = f"""You are a friendly teacher answering a student.
+Use simple words, explain clearly, and include one short example when it helps.
+Answer using ONLY these notes. If the answer is not in the notes, say "Not found in your notes."
 
 Notes:
 {notes}
@@ -49,3 +50,27 @@ Question: {q.question}"""
 )
     answer = reply.choices[0].message.content
     return {"answer": answer, "sources": sources}
+# ---------- BONUS: upload a PDF from the web page ----------
+from fastapi import UploadFile
+from ingest import add_pdf
+
+@app.post("/upload")
+def upload(file: UploadFile):
+    name = os.path.basename(file.filename)
+    path = os.path.join("docs", name)
+    with open(path, "wb") as f:
+        f.write(file.file.read())
+    count = add_pdf(path)
+    return {"message": f"Added {name} ({count} pieces). Ask me!"}
+# ---------- DAY 3: the agent door ----------
+from agent_langchain import ask_agent
+
+
+@app.post("/agent")
+def agent(q: Question):
+    answer, steps = ask_agent(q.question)
+    return {"answer": answer, "steps": steps}
+# ---------- DAY 3: the live voice door ----------
+from voice import router as voice_router
+
+app.include_router(voice_router)
